@@ -250,15 +250,24 @@ export const FoodScanner: React.FC<FoodScannerProps> = ({ initialSearchQuery = '
                     setSelectedImage(null);
                     setImagePreviewUrl(null);
                   }}
-                  className="absolute -top-2 -right-2 bg-red-600 text-white p-1 rounded-full shadow-md hover:bg-red-700 transition"
+                  className="absolute -top-2 -right-2 bg-red-600 text-white p-1 rounded-full shadow-md hover:bg-red-700 transition cursor-pointer"
                   title="Remove image"
                 >
                   <XCircle className="w-4 h-4" />
                 </button>
               </div>
-              <p className="text-xs font-medium text-slate-600">
-                Photo attached: <span className="font-bold text-slate-800">{selectedImage?.name}</span>
+              <p className="text-xs font-medium text-slate-700">
+                Photo attached: <span className="font-bold text-slate-900">{selectedImage?.name}</span>
               </p>
+              
+              {/* Honest AI / Recognition Status Pill */}
+              <div className="max-w-md mx-auto p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-[11px] leading-relaxed text-left flex items-start gap-2">
+                <Info className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-bold block">Offline Mode (No Cloud Vision API Connected):</span>
+                  <span>Photos provide visual reference. To verify toxicological safety, please ensure the substance, brand, or ingredient name is confirmed in the search box below.</span>
+                </div>
+              </div>
             </div>
           ) : (
             <div className="space-y-4">
@@ -293,6 +302,10 @@ export const FoodScanner: React.FC<FoodScannerProps> = ({ initialSearchQuery = '
                   <span>Use Camera</span>
                 </button>
               </div>
+
+              <p className="text-[11px] text-slate-400">
+                ℹ️ Running offline veterinary toxicology mode. Live image recognition activates when cloud API is configured.
+              </p>
             </div>
           )}
 
@@ -453,12 +466,15 @@ const AnalysisResultCard: React.FC<{ result: AnalysisResult; onReset: () => void
       <div className={`bg-gradient-to-r ${badge.gradient} p-6 sm:p-8 text-white relative`}>
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="space-y-1">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider border shadow-xs ${badge.badgeBg}`}>
                 {badge.badgeText}
               </span>
               <span className="text-xs font-semibold text-white/80">
                 Species: {result.species === 'dog' ? 'Dog 🐶' : 'Cat 🐱'}
+              </span>
+              <span className="text-[11px] font-medium bg-black/20 text-white/90 px-2.5 py-0.5 rounded-full">
+                Source: {result.source === 'database' ? 'Verified Database (Name Match)' : result.source === 'ai_vision' ? 'Cloud Vision AI' : 'Pending Verification'}
               </span>
             </div>
             <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-white pt-1">

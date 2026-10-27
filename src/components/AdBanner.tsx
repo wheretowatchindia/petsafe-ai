@@ -18,7 +18,9 @@ export const AdBanner: React.FC<AdBannerProps> = ({ onUpgradeClick, position = '
       <div className="bg-gradient-to-r from-slate-100 via-sky-50 to-emerald-50 border border-slate-200/90 rounded-2xl p-4 sm:p-5 relative overflow-hidden shadow-xs">
         {/* Ad Indicator Badge */}
         <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-200/60 text-[11px] font-medium text-slate-400">
-          <span className="uppercase tracking-wider">Sponsored Partner Advertisement</span>
+          <span className="uppercase tracking-wider font-bold text-slate-500">
+            [Ad Placeholder] Sponsor Placement • Google AdSense Ready
+          </span>
           <button
             onClick={onUpgradeClick}
             className="text-emerald-700 hover:text-emerald-800 font-semibold flex items-center gap-1 transition"
@@ -35,18 +37,18 @@ export const AdBanner: React.FC<AdBannerProps> = ({ onUpgradeClick, position = '
             </div>
             <div>
               <h4 className="font-semibold text-slate-900 text-sm sm:text-base">
-                Chewy Pet Pharmacy — 20% Off First Medication Order
+                Chewy Pet Pharmacy — 20% Off First Medication Order (Partner Demo)
               </h4>
               <p className="text-xs text-slate-600 mt-0.5 line-clamp-1 sm:line-clamp-none">
-                Prescription flea, tick, heartworm preventatives and vet-approved diets delivered to your doorstep.
+                Sample ad unit for free tier users. Will connect to live ad network (e.g. AdSense) upon production launch.
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2 flex-shrink-0 w-full sm:w-auto justify-end">
-            <span className="inline-flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer transition shadow-xs">
-              <span>View Offers</span>
-              <ExternalLink className="w-3 h-3" />
+            <span className="inline-flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg bg-slate-200 text-slate-700 cursor-not-allowed">
+              <span>Sample Ad Unit</span>
+              <ExternalLink className="w-3 h-3 text-slate-400" />
             </span>
           </div>
         </div>

@@ -45,14 +45,19 @@ export const PricingSection: React.FC<PricingProps> = ({ onClose, isModal = fals
 
         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold">
           <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
-          <span>Simple, Transparent US Pricing</span>
+          <span>Transparent US Pricing (Demo Mode Active)</span>
         </div>
         <h2 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
           Protect Your Pets with PetSafe AI
         </h2>
         <p className="text-sm text-slate-600 max-w-lg mx-auto leading-relaxed">
-          Start with our free veterinary knowledge tier, or unlock unlimited AI scans, multi-pet profiles, and ad-free peace of mind.
+          Start with our free veterinary knowledge tier, or test the $3.99/mo premium tier. Live payment processing is currently in demo mode with zero real charges.
         </p>
+
+        {/* Demo Mode Notice Banner */}
+        <div className="max-w-md mx-auto p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs font-semibold">
+          🛠️ <strong>Demo Checkout:</strong> Stripe payment gateway is not yet connected. You can test and toggle premium features freely.
+        </div>
 
         {/* Success Alert */}
         {successMessage && (
@@ -185,7 +190,7 @@ export const PricingSection: React.FC<PricingProps> = ({ onClose, isModal = fals
             {subscription.isPremium ? (
               <span className="w-full py-3 rounded-2xl bg-emerald-600 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm">
                 <Check className="w-4 h-4" />
-                <span>Premium Membership Active</span>
+                <span>Premium Membership Active (Demo)</span>
               </span>
             ) : (
               <button
@@ -195,18 +200,18 @@ export const PricingSection: React.FC<PricingProps> = ({ onClose, isModal = fals
                 className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-extrabold text-sm shadow-md shadow-emerald-600/30 transition flex items-center justify-center gap-2 cursor-pointer"
               >
                 {isProcessing ? (
-                  <span>Activating...</span>
+                  <span>Activating Demo...</span>
                 ) : (
                   <>
                     <Sparkles className="w-4 h-4 text-amber-300" />
-                    <span>Upgrade Now for $3.99/mo</span>
+                    <span>Test Upgrade (Demo Mode — Free)</span>
                   </>
                 )}
               </button>
             )}
 
-            <p className="text-[10px] text-slate-400 text-center">
-              🔒 Stripe Payment Architecture Ready • No real charges processed without permission.
+            <p className="text-[10px] text-slate-500 text-center font-medium">
+              🔒 <strong>Demo Checkout:</strong> No real payments or credit card processing active. Stripe integration ready for launch.
             </p>
           </div>
         </div>
