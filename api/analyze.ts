@@ -27,9 +27,42 @@ export default async function handler(req: any, res: any) {
     return res.status(405).json({ error: 'Method not allowed. Use POST.' });
   }
 
+  const { imageBase64, mimeType = 'image/jpeg', query = '', species = 'dog', weightLbs }: AnalyzeRequest = req.body || {};
+  const validatedSpecies = species === 'cat' ? 'cat' : 'dog';
+  const speciesLabel = validatedSpecies === 'dog' ? 'Canine (Dog 🐶)' : 'Feline (Cat 🐱)';
+
   // 1. Check API Key
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey || apiKey.trim().length === 0) {
+    if (imageBase64) {
+      return res.status(200).json({
+        fallback: false,
+        source: 'fallback',
+        query: query || 'Uploaded Image',
+        species: validatedSpecies,
+        safetyLevel: 'unknown',
+        headline: 'AI Vision Offline — Safety Not Verified',
+        mainConcerns: [
+          'The AI Vision service is not configured with an active API key on the server.',
+          'CRITICAL SAFETY RULE: Never assume an unverified food, plant, or substance is safe for pets.'
+        ],
+        toxicCompounds: ['Unverified Substance'],
+        precautions: [
+          'Do not feed this item to your pet until its ingredients are verified.',
+          'Consult a licensed veterinarian before introducing unfamiliar food.'
+        ],
+        recommendedNextSteps: [
+          'Type the specific ingredient or brand name in the search box to check our verified database.',
+          'Call ASPCA Animal Poison Control at (888) 426-4435 if ingestion has already occurred.'
+        ],
+        references: [
+          { title: 'ASPCA Animal Poison Control Database', organization: 'ASPCA' }
+        ],
+        confidence: 0,
+        isUnknownOrUnverified: true
+      });
+    }
+
     return res.status(200).json({
       fallback: true,
       error: 'NO_API_KEY',
@@ -38,15 +71,10 @@ export default async function handler(req: any, res: any) {
   }
 
   try {
-    const { imageBase64, mimeType = 'image/jpeg', query = '', species = 'dog', weightLbs }: AnalyzeRequest = req.body || {};
-
     // 2. Input Validation
     if (!imageBase64 && (!query || query.trim().length === 0)) {
       return res.status(400).json({ error: 'Either a valid image or query text is required.' });
     }
-
-    const validatedSpecies = species === 'cat' ? 'cat' : 'dog';
-    const speciesLabel = validatedSpecies === 'dog' ? 'Canine (Dog 🐶)' : 'Feline (Cat 🐱)';
 
     // 3. Image Validation
     if (imageBase64) {
@@ -72,19 +100,20 @@ You are PetSafe AI, an expert veterinary toxicological assistant evaluating safe
 
 TARGET COMPANION SPECIES: ${speciesLabel}
 ${weightLbs && weightLbs > 0 ? `APPROXIMATE PET WEIGHT: ${weightLbs} lbs (${(weightLbs * 0.453592).toFixed(1)} kg)` : ''}
-USER QUERY / SUBSTANCE HINT: "${query.slice(0, 200)}"
+${query.trim() ? `USER NOTE / SEARCH HINT: "${query.slice(0, 200)}"` : ''}
 
 CRITICAL INSTRUCTIONS:
 1. EXAMINE THE PHOTO CAREFULLY:
-   - If it is a food label or kibble bag, perform OCR on all visible ingredients. Search specifically for hidden toxins (e.g. Xylitol/birch sugar/wood sugar, cocoa/theobromine, grapes/raisins, garlic/onion powder, macadamia nuts, high sodium, BHA/BHT/ethoxyquin, propylene glycol for cats, caffeine, raw yeast dough).
-   - If it is a plant or flower, identify the species accurately. True Lilies (Lilium and Hemerocallis) are 100% FATAL to cats even from microscopic pollen or vase water! Sago palm, oleander, and autumn crocus are deadly to both.
+   - Identify the exact product, brand, plant species, or food item shown in the image (e.g. "Amul Dark Chocolate", "Peace Lily", "Green Grapes", "Purina Pro Plan Kibble").
+   - Perform OCR on any visible text, nutritional labels, or ingredient lists. Search specifically for hidden toxins (e.g. Xylitol/birch sugar, cocoa/theobromine, grapes/raisins, garlic/onion, macadamia nuts, high sodium, caffeine).
+   - If the photo is a plant or flower, identify the botanical species. True Lilies (Lilium/Hemerocallis) are 100% FATAL to cats. Sago palms, oleanders, and azaleas are deadly.
 2. SPECIES DIFFERENTIALS:
-   - Never apply dog tolerances to cats! (e.g., Lilies, Acetaminophen/Tylenol, permethrin, essential oils like tea tree/citrus are lethal to cats).
-   - Grapes/raisins and Xylitol cause sudden fatal organ failure in dogs.
+   - Lilies, Acetaminophen/Tylenol, permethrin, and citrus/tea tree essential oils are lethal to cats.
+   - Grapes/raisins, Xylitol, macadamia nuts, and chocolate cause severe organ damage or death in dogs.
 3. UNCERTAINTY & UNIDENTIFIED RULE:
-   - NEVER invent or guess safety. If the photo is blurry, incomplete, cannot be definitively identified, or contains unidentified substances, classify strictly as "unknown" ("Unknown — Safety Not Verified") and advise consulting a veterinarian.
+   - NEVER invent or guess safety. If the photo is blurry, unidentifiable, or shows an unknown substance, classify strictly as "unknown" ("Unknown — Safety Not Verified") and advise consulting a veterinarian.
 4. EMERGENCY PROTOCOL:
-   - If a potentially toxic substance is identified, include emergency hotline guidance (ASPCA Animal Poison Control: (888) 426-4435, Pet Poison Helpline: (855) 764-7661).
+   - If potentially toxic, include: ASPCA Animal Poison Control: (888) 426-4435, Pet Poison Helpline: (855) 764-7661.
    - Explicitly state: "Do NOT attempt to induce vomiting at home unless directed by a licensed veterinarian."
 5. CLASSIFICATION CATEGORIES (MUST BE EXACTLY ONE OF):
    - "safe" (Generally Safe in moderation)
@@ -92,9 +121,9 @@ CRITICAL INSTRUCTIONS:
    - "toxic" (Potentially Toxic / Hazardous / Fatal)
    - "unknown" (Safety Not Verified / Unidentified)
 
-Return ONLY a valid JSON object matching this schema with NO markdown wrapping or preamble:
+Return ONLY a valid JSON object matching this schema with NO markdown wrapping:
 {
-  "query": "Specific common name of identified substance",
+  "query": "Exact identified product or plant name (e.g. Amul 55% Cocoa Dark Chocolate Bar)",
   "species": "${validatedSpecies}",
   "safetyLevel": "safe" | "caution" | "toxic" | "unknown",
   "headline": "Clear concise 1-sentence safety verdict",
@@ -128,7 +157,7 @@ Return ONLY a valid JSON object matching this schema with NO markdown wrapping o
     });
 
     // Fast, robust candidate execution: gemini-3.5-flash-lite is the fastest active vision model
-    const candidateModels = ['gemini-3.5-flash-lite', 'gemini-3.8-flash', 'gemini-3.1-flash-lite', 'gemini-3.7-flash'];
+    const candidateModels = ['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-3.7-flash', 'gemini-3.8-flash'];
     let geminiRes: Response | null = null;
     let modelUsed = candidateModels[0];
 
@@ -141,7 +170,7 @@ Return ONLY a valid JSON object matching this schema with NO markdown wrapping o
           headers: {
             'Content-Type': 'application/json'
           },
-          signal: AbortSignal.timeout(10000),
+          signal: AbortSignal.timeout(12000),
           body: JSON.stringify({
             contents: [
               {
@@ -177,13 +206,45 @@ Return ONLY a valid JSON object matching this schema with NO markdown wrapping o
     if (!geminiRes || !geminiRes.ok) {
       const errText = geminiRes ? await geminiRes.text() : 'Upstream timeout or connection error';
       console.error('Gemini Vision API Error:', modelUsed, errText);
+
+      // If an image was uploaded, do NOT fake match offline text database!
+      if (imageBase64) {
+        return res.status(200).json({
+          fallback: false,
+          source: 'fallback',
+          query: query || 'Uploaded Image',
+          species: validatedSpecies,
+          safetyLevel: 'unknown',
+          headline: 'Visual Analysis Inconclusive — Safety Not Verified',
+          mainConcerns: [
+            'Our Google Gemini Vision service was unable to conclusively analyze this photograph.',
+            'CRITICAL SAFETY RULE: Never assume an unverified food, plant, or substance is safe for pets.'
+          ],
+          toxicCompounds: ['Unverified Substance'],
+          precautions: [
+            'Do not feed or allow your pet to chew this item until you check the packaging or consult a veterinarian.',
+            'If your pet has already consumed this item, retain the packaging and contact an emergency vet.'
+          ],
+          recommendedNextSteps: [
+            'Try uploading a closer, clearer photograph with good lighting.',
+            'Or search for the specific ingredient or brand name in the search box.',
+            'Call ASPCA Animal Poison Control: (888) 426-4435 or Pet Poison Helpline: (855) 764-7661.'
+          ],
+          references: [
+            { title: 'ASPCA Animal Poison Control Database', organization: 'ASPCA' }
+          ],
+          confidence: 0,
+          isUnknownOrUnverified: true
+        });
+      }
+
       return res.status(200).json({
         fallback: true,
         error: 'API_ERROR',
         status: geminiRes?.status || 504,
         modelAttempted: modelUsed,
         geminiError: errText,
-        message: 'Google Gemini Vision service took longer than expected. Seamlessly fell back to verified offline database.'
+        message: 'Google Gemini service took longer than expected. Seamlessly fell back to verified offline database.'
       });
     }
 
@@ -191,6 +252,24 @@ Return ONLY a valid JSON object matching this schema with NO markdown wrapping o
     const rawContent = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
 
     if (!rawContent) {
+      if (imageBase64) {
+        return res.status(200).json({
+          fallback: false,
+          source: 'fallback',
+          query: query || 'Uploaded Image',
+          species: validatedSpecies,
+          safetyLevel: 'unknown',
+          headline: 'Empty AI Response — Safety Not Verified',
+          mainConcerns: ['No response was generated by the AI vision model for this image.'],
+          toxicCompounds: ['Unverified Substance'],
+          precautions: ['Do not feed this item to your pet until verified.'],
+          recommendedNextSteps: ['Try uploading a clearer photograph or consulting a veterinarian.'],
+          references: [{ title: 'ASPCA Animal Poison Control', organization: 'ASPCA' }],
+          confidence: 0,
+          isUnknownOrUnverified: true
+        });
+      }
+
       return res.status(200).json({
         fallback: true,
         error: 'EMPTY_RESPONSE',
@@ -223,6 +302,24 @@ Return ONLY a valid JSON object matching this schema with NO markdown wrapping o
 
   } catch (error: any) {
     console.error('Error in analyze handler:', error);
+    if (req.body?.imageBase64) {
+      return res.status(200).json({
+        fallback: false,
+        source: 'fallback',
+        query: req.body?.query || 'Uploaded Image',
+        species: req.body?.species === 'cat' ? 'cat' : 'dog',
+        safetyLevel: 'unknown',
+        headline: 'Server Error — Safety Not Verified',
+        mainConcerns: ['An unexpected server error occurred during visual analysis.'],
+        toxicCompounds: ['Unverified Substance'],
+        precautions: ['Do not feed this item to your pet until verified.'],
+        recommendedNextSteps: ['Please try again or consult a licensed veterinarian.'],
+        references: [{ title: 'ASPCA Animal Poison Control', organization: 'ASPCA' }],
+        confidence: 0,
+        isUnknownOrUnverified: true
+      });
+    }
+
     return res.status(200).json({
       fallback: true,
       error: 'SERVER_ERROR',
