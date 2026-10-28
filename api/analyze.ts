@@ -141,7 +141,7 @@ Return ONLY a valid JSON object matching this schema with NO markdown wrapping o
           headers: {
             'Content-Type': 'application/json'
           },
-          signal: AbortSignal.timeout(6000), // Strict 6-second timeout
+          signal: AbortSignal.timeout(12000), // 12-second timeout for US region
           body: JSON.stringify({
             contents: [
               {
