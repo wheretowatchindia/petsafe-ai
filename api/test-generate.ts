@@ -1,3 +1,7 @@
+export const config = {
+  maxDuration: 15
+};
+
 export default async function handler(req: any, res: any) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) return res.status(200).json({ error: 'NO_KEY' });
@@ -8,11 +12,11 @@ export default async function handler(req: any, res: any) {
   const model = 'gemini-3.5-flash-lite';
   const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
+  const t0 = Date.now();
   try {
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      signal: AbortSignal.timeout(8000),
       body: JSON.stringify({
         contents: [
           {
@@ -24,7 +28,7 @@ export default async function handler(req: any, res: any) {
                 }
               },
               {
-                text: 'What color is this 1x1 pixel image? Return strictly valid JSON: {"color": "red"}'
+                text: 'What color is this 1x1 pixel image? Return JSON: {"color": "red"}'
               }
             ]
           }
@@ -35,10 +39,11 @@ export default async function handler(req: any, res: any) {
       })
     });
 
+    const elapsed = Date.now() - t0;
     const status = response.status;
     const text = await response.text();
-    return res.status(200).json({ status, text });
+    return res.status(200).json({ elapsedMs: elapsed, status, text: JSON.parse(text) });
   } catch (err: any) {
-    return res.status(500).json({ error: err.message });
+    return res.status(500).json({ elapsedMs: Date.now() - t0, error: err.message });
   }
 }
