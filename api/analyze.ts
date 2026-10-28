@@ -66,7 +66,27 @@ export default async function handler(req: any, res: any) {
       }
     }
 
-    // 4. Construct Clinical Prompt adhering strictly to ASPCA & AVMA toxicology standards
+    // 4. Determine Best Available Vision Model dynamically
+    let targetModel = 'gemini-1.5-flash-latest';
+    try {
+      const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+      if (listRes.ok) {
+        const listData = await listRes.json();
+        const models: string[] = (listData.models || [])
+          .filter((m: any) => m.supportedGenerationMethods?.includes('generateContent'))
+          .map((m: any) => m.name.replace('models/', ''));
+
+        // Prioritize fast vision models
+        const candidate = models.find((m) => m.includes('flash') || m.includes('1.5') || m.includes('2.0') || m.includes('pro'));
+        if (candidate) {
+          targetModel = candidate;
+        }
+      }
+    } catch (e) {
+      // Use default fallback model
+    }
+
+    // 5. Construct Clinical Prompt adhering strictly to ASPCA & AVMA toxicology standards
     const promptText = `
 You are PetSafe AI, an expert veterinary toxicological assistant evaluating safety for companion animals based on ASPCA Animal Poison Control, AVMA, and Merck Veterinary Manual standards.
 
@@ -110,7 +130,7 @@ Return ONLY a valid JSON object matching this schema with NO markdown wrapping o
 }
 `;
 
-    // 5. Construct Gemini Vision Request
+    // 6. Construct Gemini Vision Request
     const contentsParts: any[] = [];
 
     if (imageBase64) {
@@ -127,8 +147,7 @@ Return ONLY a valid JSON object matching this schema with NO markdown wrapping o
       text: promptText
     });
 
-    // Use official Gemini 1.5 Flash Vision endpoint
-    const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent?key=${apiKey}`;
 
     const geminiRes = await fetch(geminiEndpoint, {
       method: 'POST',
@@ -150,11 +169,14 @@ Return ONLY a valid JSON object matching this schema with NO markdown wrapping o
 
     if (!geminiRes.ok) {
       const errText = await geminiRes.text();
-      console.error('Gemini Vision API Error:', geminiRes.status, errText);
+      console.error('Gemini Vision API Error:', geminiRes.status, targetModel, errText);
       return res.status(200).json({
         fallback: true,
         error: 'API_ERROR',
-        message: 'Google Gemini Vision service temporarily busy. Seamlessly fell back to verified offline database.'
+        status: geminiRes.status,
+        modelAttempted: targetModel,
+        geminiError: errText,
+        message: `Google Gemini Vision (${targetModel}) error: ${errText}`
       });
     }
 
@@ -188,7 +210,8 @@ Return ONLY a valid JSON object matching this schema with NO markdown wrapping o
         ? parsedResult.references 
         : [{ title: 'ASPCA Animal Poison Control Database', organization: 'ASPCA' }],
       confidence: typeof parsedResult.confidence === 'number' ? parsedResult.confidence : 0.9,
-      source: 'ai_vision'
+      source: 'ai_vision',
+      modelUsed: targetModel
     });
 
   } catch (error: any) {
