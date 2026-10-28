@@ -116,8 +116,8 @@ Return ONLY a valid JSON object matching this schema with NO markdown wrapping o
     if (imageBase64) {
       const cleanBase64 = imageBase64.replace(/^data:image\/[a-zA-Z+]+;base64,/, '');
       contentsParts.push({
-        inline_data: {
-          mime_type: mimeType === 'image/jpg' ? 'image/jpeg' : mimeType,
+        inlineData: {
+          mimeType: mimeType === 'image/jpg' ? 'image/jpeg' : mimeType,
           data: cleanBase64
         }
       });
@@ -127,8 +127,8 @@ Return ONLY a valid JSON object matching this schema with NO markdown wrapping o
       text: promptText
     });
 
-    // Fast, robust candidate execution with strict 6s timeout per request
-    const candidateModels = ['gemini-3.8-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+    // Fast, robust candidate execution: gemini-3.5-flash-lite is the fastest active vision model
+    const candidateModels = ['gemini-3.5-flash-lite', 'gemini-3.8-flash', 'gemini-3.1-flash-lite', 'gemini-3.7-flash'];
     let geminiRes: Response | null = null;
     let modelUsed = candidateModels[0];
 
@@ -141,7 +141,7 @@ Return ONLY a valid JSON object matching this schema with NO markdown wrapping o
           headers: {
             'Content-Type': 'application/json'
           },
-          signal: AbortSignal.timeout(12000), // 12-second timeout for US region
+          signal: AbortSignal.timeout(10000),
           body: JSON.stringify({
             contents: [
               {
@@ -149,7 +149,7 @@ Return ONLY a valid JSON object matching this schema with NO markdown wrapping o
               }
             ],
             generationConfig: {
-              response_mime_type: 'application/json',
+              responseMimeType: 'application/json',
               temperature: 0.1
             }
           })
@@ -162,6 +162,7 @@ Return ONLY a valid JSON object matching this schema with NO markdown wrapping o
 
         // If model is 404 (unavailable) or 503 (high demand) or 500, try next candidate model!
         if (response.status === 404 || response.status === 503 || response.status === 500) {
+          console.warn(`Model ${model} returned status ${response.status}, failing over to next candidate...`);
           continue;
         } else {
           geminiRes = response;
@@ -169,7 +170,7 @@ Return ONLY a valid JSON object matching this schema with NO markdown wrapping o
         }
       } catch (err: any) {
         console.error(`Attempt with ${model} timed out or failed:`, err?.message);
-        break; // Prevent cascading timeouts
+        continue;
       }
     }
 
