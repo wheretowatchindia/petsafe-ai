@@ -1,5 +1,5 @@
 export const config = {
-  maxDuration: 15,
+  maxDuration: 30,
 };
 
 interface AnalyzeRequest {
@@ -170,7 +170,7 @@ Return ONLY a valid JSON object matching this schema with NO markdown wrapping:
           headers: {
             'Content-Type': 'application/json'
           },
-          signal: AbortSignal.timeout(6000),
+          signal: AbortSignal.timeout(12000),
           body: JSON.stringify({
             contents: [
               {
@@ -179,7 +179,10 @@ Return ONLY a valid JSON object matching this schema with NO markdown wrapping:
             ],
             generationConfig: {
               responseMimeType: 'application/json',
-              temperature: 0.1
+              temperature: 0.1,
+              thinkingConfig: {
+                thinkingBudget: 0
+              }
             }
           })
         });
