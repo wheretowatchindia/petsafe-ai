@@ -66,8 +66,8 @@ export default async function handler(req: any, res: any) {
       }
     }
 
-    // 4. Determine Best Available Vision Model dynamically
-    let targetModel = 'gemini-1.5-flash-latest';
+    // 4. Target Model: Gemini 3.8 Flash as recommended by Google AI Studio
+    let targetModel = 'gemini-3.8-flash';
     try {
       const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
       if (listRes.ok) {
@@ -76,14 +76,16 @@ export default async function handler(req: any, res: any) {
           .filter((m: any) => m.supportedGenerationMethods?.includes('generateContent'))
           .map((m: any) => m.name.replace('models/', ''));
 
-        // Prioritize fast vision models
-        const candidate = models.find((m) => m.includes('flash') || m.includes('1.5') || m.includes('2.0') || m.includes('pro'));
-        if (candidate) {
-          targetModel = candidate;
+        const preferred = models.find((m) => m === 'gemini-3.8-flash') ||
+                          models.find((m) => m.includes('3.8')) ||
+                          models.find((m) => m.includes('flash')) ||
+                          models[0];
+        if (preferred) {
+          targetModel = preferred;
         }
       }
-    } catch (e) {
-      // Use default fallback model
+    } catch {
+      targetModel = 'gemini-3.8-flash';
     }
 
     // 5. Construct Clinical Prompt adhering strictly to ASPCA & AVMA toxicology standards
