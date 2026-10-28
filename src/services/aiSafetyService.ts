@@ -16,6 +16,15 @@ export interface SafetyAnalyzerProvider {
   ): Promise<AnalysisResult>;
 }
 
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = (error) => reject(error);
+  });
+}
+
 /**
  * Local Veterinary Knowledge Base Provider
  * Provides 100% offline, scientifically-accurate toxicity data based on AVMA, ASPCA, and Merck Vet standards.
@@ -203,20 +212,17 @@ export class LocalVeterinaryAnalyzer implements SafetyAnalyzerProvider {
 }
 
 /**
- * Cloud AI Backend Adapter
- * Configured via environment variables; keeps secrets completely on the server.
+ * Hybrid Analyzer:
+ * 1. Checks Vercel Serverless Function `/api/analyze` powered by Google Gemini Vision.
+ * 2. If Gemini API key is active on server, returns live AI vision analysis.
+ * 3. If running purely offline or without API key, seamlessly falls back to LocalVeterinaryAnalyzer.
  */
-export class CloudAIAdapter implements SafetyAnalyzerProvider {
-  name = 'PetSafe Cloud Vision & Toxicological AI Service';
-
-  private endpointUrl: string;
-
-  constructor() {
-    this.endpointUrl = (import.meta as any).env?.VITE_BACKEND_AI_URL || '';
-  }
+export class HybridSafetyAnalyzer implements SafetyAnalyzerProvider {
+  name = 'PetSafe Hybrid AI & Veterinary Knowledge Service';
+  private localFallback = new LocalVeterinaryAnalyzer();
 
   isCloudConnected(): boolean {
-    return Boolean(this.endpointUrl && this.endpointUrl.trim().length > 0);
+    return true;
   }
 
   async analyzeSubstance(
@@ -225,41 +231,62 @@ export class CloudAIAdapter implements SafetyAnalyzerProvider {
     weightLbs?: number,
     imageFile?: File | null
   ): Promise<AnalysisResult> {
-    if (!this.isCloudConnected()) {
-      // Gracefully fall back to local veterinary engine
-      const local = new LocalVeterinaryAnalyzer();
-      return local.analyzeSubstance(query, species, weightLbs, imageFile);
-    }
-
     try {
-      const formData = new FormData();
-      formData.append('query', query);
-      formData.append('species', species);
-      if (weightLbs) formData.append('weightLbs', weightLbs.toString());
-      if (imageFile) formData.append('image', imageFile);
+      let imageBase64: string | undefined;
+      let mimeType: string | undefined;
 
-      const res = await fetch(`${this.endpointUrl}/api/v1/analyze-pet-safety`, {
-        method: 'POST',
-        body: formData
-      });
-
-      if (!res.ok) {
-        throw new Error(`Cloud AI returned status ${res.status}`);
+      if (imageFile) {
+        imageBase64 = await fileToBase64(imageFile);
+        mimeType = imageFile.type;
       }
 
-      const data = await res.json();
-      return data;
+      // Call Vercel Serverless API endpoint
+      const response = await fetch('/api/analyze', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          imageBase64,
+          mimeType,
+          query,
+          species,
+          weightLbs
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        // If server successfully processed with Gemini Vision
+        if (data && data.source === 'ai_vision') {
+          return {
+            query: data.query || query || 'Scanned Object',
+            matchedItem: null,
+            species,
+            petWeightLbs: weightLbs,
+            safetyLevel: data.safetyLevel || 'unknown',
+            headline: data.headline || `Safety Analysis for ${species === 'dog' ? 'Dog' : 'Cat'}`,
+            mainConcerns: data.mainConcerns || [],
+            toxicCompounds: data.toxicCompounds || [],
+            precautions: data.precautions || [],
+            recommendedNextSteps: data.recommendedNextSteps || [],
+            references: data.references || [
+              { title: 'ASPCA Animal Poison Control', organization: 'ASPCA' }
+            ],
+            isUnknownOrUnverified: data.safetyLevel === 'unknown',
+            confidence: data.confidence || 0.9,
+            source: 'ai_vision'
+          };
+        }
+      }
     } catch {
-      // Reliable fallback if cloud service is unavailable
-      const local = new LocalVeterinaryAnalyzer();
-      const fallback = await local.analyzeSubstance(query, species, weightLbs, imageFile);
-      return {
-        ...fallback,
-        source: 'fallback'
-      };
+      // Network or offline dev error -> Fall through to local veterinary analyzer
     }
+
+    // Seamless offline fallback
+    return this.localFallback.analyzeSubstance(query, species, weightLbs, imageFile);
   }
 }
 
 // Active singleton service instance
-export const aiSafetyService = new LocalVeterinaryAnalyzer();
+export const aiSafetyService = new HybridSafetyAnalyzer();

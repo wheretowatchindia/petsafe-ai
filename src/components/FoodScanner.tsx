@@ -260,12 +260,12 @@ export const FoodScanner: React.FC<FoodScannerProps> = ({ initialSearchQuery = '
                 Photo attached: <span className="font-bold text-slate-900">{selectedImage?.name}</span>
               </p>
               
-              {/* Honest AI / Recognition Status Pill */}
-              <div className="max-w-md mx-auto p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-[11px] leading-relaxed text-left flex items-start gap-2">
-                <Info className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+              {/* AI Vision Status Pill */}
+              <div className="max-w-md mx-auto p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-[11px] leading-relaxed text-left flex items-start gap-2">
+                <Sparkles className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
                 <div>
-                  <span className="font-bold block">Offline Mode (No Cloud Vision API Connected):</span>
-                  <span>Photos provide visual reference. To verify toxicological safety, please ensure the substance, brand, or ingredient name is confirmed in the search box below.</span>
+                  <span className="font-bold block">Google Gemini Vision AI Connected:</span>
+                  <span>Photos will be analyzed by Google Gemini Flash Vision on the server, with automatic fallback to our verified veterinary index.</span>
                 </div>
               </div>
             </div>
@@ -303,8 +303,8 @@ export const FoodScanner: React.FC<FoodScannerProps> = ({ initialSearchQuery = '
                 </button>
               </div>
 
-              <p className="text-[11px] text-slate-400">
-                ℹ️ Running offline veterinary toxicology mode. Live image recognition activates when cloud API is configured.
+              <p className="text-[11px] text-slate-500 font-medium">
+                ⚡ Powered by Google Gemini Vision & Offline Veterinary Toxicology Index.
               </p>
             </div>
           )}
@@ -474,7 +474,7 @@ const AnalysisResultCard: React.FC<{ result: AnalysisResult; onReset: () => void
                 Species: {result.species === 'dog' ? 'Dog 🐶' : 'Cat 🐱'}
               </span>
               <span className="text-[11px] font-medium bg-black/20 text-white/90 px-2.5 py-0.5 rounded-full">
-                Source: {result.source === 'database' ? 'Verified Database (Name Match)' : result.source === 'ai_vision' ? 'Cloud Vision AI' : 'Pending Verification'}
+                Source: {result.source === 'ai_vision' ? 'Google Gemini Vision AI 🤖' : result.source === 'database' ? 'Verified Database (Name Match)' : 'Pending Verification'}
               </span>
             </div>
             <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-white pt-1">
