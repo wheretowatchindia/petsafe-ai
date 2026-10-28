@@ -160,8 +160,8 @@ Return ONLY a valid JSON object matching this schema with NO markdown wrapping o
           break;
         }
 
-        // If 404, quickly try next model candidate
-        if (response.status === 404) {
+        // If model is 404 (unavailable) or 503 (high demand) or 500, try next candidate model!
+        if (response.status === 404 || response.status === 503 || response.status === 500) {
           continue;
         } else {
           geminiRes = response;
