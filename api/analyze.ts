@@ -156,8 +156,8 @@ Return ONLY a valid JSON object matching this schema with NO markdown wrapping:
       text: promptText
     });
 
-    // Fast, robust candidate execution: gemini-3.1-flash-lite is the fastest active vision model
-    const candidateModels = ['gemini-3.1-flash-lite', 'gemini-3.5-flash-lite', 'gemini-3.7-flash', 'gemini-3.8-flash'];
+    // Fast, robust candidate execution: gemini-3.5-flash-lite is the fastest active vision model
+    const candidateModels = ['gemini-3.5-flash-lite', 'gemini-3.7-flash', 'gemini-3.8-flash'];
     let geminiRes: Response | null = null;
     let modelUsed = candidateModels[0];
 
@@ -178,11 +178,7 @@ Return ONLY a valid JSON object matching this schema with NO markdown wrapping:
               }
             ],
             generationConfig: {
-              responseMimeType: 'application/json',
-              temperature: 0.1,
-              thinkingConfig: {
-                thinkingBudget: 0
-              }
+              responseMimeType: 'application/json'
             }
           })
         });
@@ -192,10 +188,10 @@ Return ONLY a valid JSON object matching this schema with NO markdown wrapping:
           break;
         }
 
-        // If model is 404 (unavailable) or 503 (high demand) or 500, try next candidate model!
-        if (response.status === 404 || response.status === 503 || response.status === 500) {
-          console.warn(`Model ${model} returned status ${response.status}, failing over to next candidate...`);
-          continue;
+        // If candidate fails (400, 404, 500, 503), log and try next candidate
+        const errText = await response.text();
+        console.warn(`Model ${model} returned status ${response.status}: ${errText.slice(0, 100)}, failing over...`);
+        continue;
         } else {
           geminiRes = response;
           break;
