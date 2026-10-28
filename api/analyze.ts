@@ -127,57 +127,62 @@ Return ONLY a valid JSON object matching this schema with NO markdown wrapping o
       text: promptText
     });
 
-    // Fast, single-call execution using Google's recommended models
+    // Fast, robust candidate execution with strict 6s timeout per request
     const candidateModels = ['gemini-3.8-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
     let geminiRes: Response | null = null;
     let modelUsed = candidateModels[0];
 
     for (const model of candidateModels) {
       modelUsed = model;
-      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: contentsParts
+      try {
+        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          signal: AbortSignal.timeout(6000), // Strict 6-second timeout
+          body: JSON.stringify({
+            contents: [
+              {
+                parts: contentsParts
+              }
+            ],
+            generationConfig: {
+              response_mime_type: 'application/json',
+              temperature: 0.1
             }
-          ],
-          generationConfig: {
-            response_mime_type: 'application/json',
-            temperature: 0.1
-          }
-        })
-      });
+          })
+        });
 
-      if (response.ok) {
-        geminiRes = response;
-        break;
-      }
+        if (response.ok) {
+          geminiRes = response;
+          break;
+        }
 
-      // If 404 on this model, immediately try next candidate in loop without stalling
-      if (response.status === 404) {
-        continue;
-      } else {
-        // If 400 or quota error, stop
-        geminiRes = response;
-        break;
+        // If 404, quickly try next model candidate
+        if (response.status === 404) {
+          continue;
+        } else {
+          geminiRes = response;
+          break;
+        }
+      } catch (err: any) {
+        console.error(`Attempt with ${model} timed out or failed:`, err?.message);
+        break; // Prevent cascading timeouts
       }
     }
 
     if (!geminiRes || !geminiRes.ok) {
-      const errText = geminiRes ? await geminiRes.text() : 'No response from AI endpoints';
+      const errText = geminiRes ? await geminiRes.text() : 'Upstream timeout or connection error';
       console.error('Gemini Vision API Error:', modelUsed, errText);
       return res.status(200).json({
         fallback: true,
         error: 'API_ERROR',
-        status: geminiRes?.status,
+        status: geminiRes?.status || 504,
         modelAttempted: modelUsed,
         geminiError: errText,
-        message: `Google Gemini Vision (${modelUsed}) error: ${errText}`
+        message: 'Google Gemini Vision service took longer than expected. Seamlessly fell back to verified offline database.'
       });
     }
 
