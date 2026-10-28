@@ -2,47 +2,43 @@ export default async function handler(req: any, res: any) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) return res.status(200).json({ error: 'NO_KEY' });
 
-  const candidates = [
-    'gemini-flash-latest',
-    'gemini-flash-lite-latest',
-    'gemini-2.5-flash-lite',
-    'gemini-3.5-flash',
-    'gemini-3.5-flash-lite',
-    'gemini-3.7-flash',
-    'gemini-3.8-flash'
-  ];
+  // 1x1 red pixel PNG
+  const testBase64Png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
 
-  const results: any[] = [];
+  const model = 'gemini-3.5-flash-lite';
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
-  for (const model of candidates) {
-    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-    try {
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        signal: AbortSignal.timeout(4000),
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [{ text: "Respond with JSON: {\"status\":\"ok\",\"model\":\"" + model + "\"}" }]
-            }
-          ],
-          generationConfig: {
-            responseMimeType: 'application/json'
+  try {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      signal: AbortSignal.timeout(8000),
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              {
+                inlineData: {
+                  mimeType: 'image/png',
+                  data: testBase64Png
+                }
+              },
+              {
+                text: 'What color is this 1x1 pixel image? Return strictly valid JSON: {"color": "red"}'
+              }
+            ]
           }
-        })
-      });
+        ],
+        generationConfig: {
+          responseMimeType: 'application/json'
+        }
+      })
+    });
 
-      const text = await response.text();
-      results.push({ model, status: response.status, ok: response.ok, body: text.slice(0, 150) });
-      if (response.ok) {
-        // Found working one!
-        break;
-      }
-    } catch (err: any) {
-      results.push({ model, error: err.message });
-    }
+    const status = response.status;
+    const text = await response.text();
+    return res.status(200).json({ status, text });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
   }
-
-  return res.status(200).json({ results });
 }
