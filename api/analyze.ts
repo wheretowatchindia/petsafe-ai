@@ -156,8 +156,8 @@ Return ONLY a valid JSON object matching this schema with NO markdown wrapping:
       text: promptText
     });
 
-    // Fast, robust candidate execution: gemini-3.5-flash-lite is the fastest active vision model
-    const candidateModels = ['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite', 'gemini-3.7-flash', 'gemini-3.8-flash'];
+    // Fast, robust candidate execution: gemini-3.1-flash-lite is the fastest active vision model
+    const candidateModels = ['gemini-3.1-flash-lite', 'gemini-3.5-flash-lite', 'gemini-3.7-flash', 'gemini-3.8-flash'];
     let geminiRes: Response | null = null;
     let modelUsed = candidateModels[0];
 
@@ -170,7 +170,7 @@ Return ONLY a valid JSON object matching this schema with NO markdown wrapping:
           headers: {
             'Content-Type': 'application/json'
           },
-          signal: AbortSignal.timeout(12000),
+          signal: AbortSignal.timeout(6000),
           body: JSON.stringify({
             contents: [
               {

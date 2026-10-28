@@ -279,6 +279,18 @@ export class HybridSafetyAnalyzer implements SafetyAnalyzerProvider {
     weightLbs?: number,
     imageFile?: File | null
   ): Promise<AnalysisResult> {
+    const cleanQuery = query.trim();
+
+    // 1. Text-Only Search with Exact Database Match:
+    // If user typed a search term without an image, and it matches our clinical veterinary database,
+    // return the verified offline data immediately (0ms latency, zero API dependency).
+    if (!imageFile && cleanQuery) {
+      const dbMatch = this.localFallback.findMatchingItem(cleanQuery);
+      if (dbMatch) {
+        return this.localFallback.analyzeSubstance(cleanQuery, species, weightLbs);
+      }
+    }
+
     try {
       let imageBase64: string | undefined;
       let mimeType: string | undefined;
@@ -298,7 +310,7 @@ export class HybridSafetyAnalyzer implements SafetyAnalyzerProvider {
         body: JSON.stringify({
           imageBase64,
           mimeType,
-          query: query.trim(),
+          query: cleanQuery,
           species,
           weightLbs
         })
