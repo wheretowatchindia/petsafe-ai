@@ -1,5 +1,5 @@
 export const config = {
-  maxDuration: 30, // 30 seconds max duration for image analysis
+  maxDuration: 15,
 };
 
 interface AnalyzeRequest {
@@ -66,29 +66,7 @@ export default async function handler(req: any, res: any) {
       }
     }
 
-    // 4. Target Model: Gemini 3.8 Flash as recommended by Google AI Studio
-    let targetModel = 'gemini-3.8-flash';
-    try {
-      const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
-      if (listRes.ok) {
-        const listData = await listRes.json();
-        const models: string[] = (listData.models || [])
-          .filter((m: any) => m.supportedGenerationMethods?.includes('generateContent'))
-          .map((m: any) => m.name.replace('models/', ''));
-
-        const preferred = models.find((m) => m === 'gemini-3.8-flash') ||
-                          models.find((m) => m.includes('3.8')) ||
-                          models.find((m) => m.includes('flash')) ||
-                          models[0];
-        if (preferred) {
-          targetModel = preferred;
-        }
-      }
-    } catch {
-      targetModel = 'gemini-3.8-flash';
-    }
-
-    // 5. Construct Clinical Prompt adhering strictly to ASPCA & AVMA toxicology standards
+    // 4. Construct Clinical Prompt adhering strictly to ASPCA & AVMA toxicology standards
     const promptText = `
 You are PetSafe AI, an expert veterinary toxicological assistant evaluating safety for companion animals based on ASPCA Animal Poison Control, AVMA, and Merck Veterinary Manual standards.
 
@@ -132,7 +110,7 @@ Return ONLY a valid JSON object matching this schema with NO markdown wrapping o
 }
 `;
 
-    // 6. Construct Gemini Vision Request
+    // 5. Construct Gemini Vision Request
     const contentsParts: any[] = [];
 
     if (imageBase64) {
@@ -149,36 +127,57 @@ Return ONLY a valid JSON object matching this schema with NO markdown wrapping o
       text: promptText
     });
 
-    const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent?key=${apiKey}`;
+    // Fast, single-call execution using Google's recommended models
+    const candidateModels = ['gemini-3.8-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+    let geminiRes: Response | null = null;
+    let modelUsed = candidateModels[0];
 
-    const geminiRes = await fetch(geminiEndpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: contentsParts
+    for (const model of candidateModels) {
+      modelUsed = model;
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: contentsParts
+            }
+          ],
+          generationConfig: {
+            response_mime_type: 'application/json',
+            temperature: 0.1
           }
-        ],
-        generationConfig: {
-          response_mime_type: 'application/json',
-          temperature: 0.1
-        }
-      })
-    });
+        })
+      });
 
-    if (!geminiRes.ok) {
-      const errText = await geminiRes.text();
-      console.error('Gemini Vision API Error:', geminiRes.status, targetModel, errText);
+      if (response.ok) {
+        geminiRes = response;
+        break;
+      }
+
+      // If 404 on this model, immediately try next candidate in loop without stalling
+      if (response.status === 404) {
+        continue;
+      } else {
+        // If 400 or quota error, stop
+        geminiRes = response;
+        break;
+      }
+    }
+
+    if (!geminiRes || !geminiRes.ok) {
+      const errText = geminiRes ? await geminiRes.text() : 'No response from AI endpoints';
+      console.error('Gemini Vision API Error:', modelUsed, errText);
       return res.status(200).json({
         fallback: true,
         error: 'API_ERROR',
-        status: geminiRes.status,
-        modelAttempted: targetModel,
+        status: geminiRes?.status,
+        modelAttempted: modelUsed,
         geminiError: errText,
-        message: `Google Gemini Vision (${targetModel}) error: ${errText}`
+        message: `Google Gemini Vision (${modelUsed}) error: ${errText}`
       });
     }
 
@@ -213,7 +212,7 @@ Return ONLY a valid JSON object matching this schema with NO markdown wrapping o
         : [{ title: 'ASPCA Animal Poison Control Database', organization: 'ASPCA' }],
       confidence: typeof parsedResult.confidence === 'number' ? parsedResult.confidence : 0.9,
       source: 'ai_vision',
-      modelUsed: targetModel
+      modelUsed
     });
 
   } catch (error: any) {
