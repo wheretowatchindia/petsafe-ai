@@ -2,7 +2,7 @@ export default async function handler(req: any, res: any) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) return res.status(200).json({ error: 'NO_KEY' });
 
-  const model = 'gemini-2.5-flash';
+  const model = 'gemini-3.8-flash';
   const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
   try {
@@ -12,7 +12,7 @@ export default async function handler(req: any, res: any) {
       body: JSON.stringify({
         contents: [
           {
-            parts: [{ text: "Respond with JSON: {\"status\": \"ok\", \"name\": \"Dark Chocolate\", \"safe\": false}" }]
+            parts: [{ text: "Respond with valid JSON: {\"status\": \"ok\", \"name\": \"Dark Chocolate\", \"safe\": false}" }]
           }
         ],
         generationConfig: {
