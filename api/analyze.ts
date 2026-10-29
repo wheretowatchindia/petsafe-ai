@@ -192,10 +192,6 @@ Return ONLY a valid JSON object matching this schema with NO markdown wrapping:
         const errText = await response.text();
         console.warn(`Model ${model} returned status ${response.status}: ${errText.slice(0, 100)}, failing over...`);
         continue;
-        } else {
-          geminiRes = response;
-          break;
-        }
       } catch (err: any) {
         console.error(`Attempt with ${model} timed out or failed:`, err?.message);
         continue;
